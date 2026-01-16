@@ -1,0 +1,88 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  icon?: string;
+  iconColor?: string;
+  link?: string;
+}
+
+const { title, description, image, icon, iconColor = "orange", link } = Astro.props;
+
+// Map icon colors to Tailwind classes
+const iconColorClasses: Record<string, { bg: string; border: string; text: string }> = {
+  orange: {
+    bg: "bg-orange-500/10",
+    border: "border-orange-500/20",
+    text: "text-orange-500"
+  },
+  blue: {
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20",
+    text: "text-blue-500"
+  },
+  green: {
+    bg: "bg-green-500/10",
+    border: "border-green-500/20",
+    text: "text-green-500"
+  },
+  purple: {
+    bg: "bg-purple-500/10",
+    border: "border-purple-500/20",
+    text: "text-purple-500"
+  }
+};
+
+const colorClasses = iconColorClasses[iconColor] || iconColorClasses.orange;
+---
+
+{link ? (
+  <a href={link} class="project-card flex flex-col group cursor-pointer">
+    <div class="aspect-[16/10] rounded-2xl overflow-hidden bg-white/5 mb-6">
+      {image ? (
+        <img 
+          alt={`${title} preview`} 
+          class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-500" 
+          src={image}
+        />
+      ) : icon ? (
+        <div class="w-full h-full flex items-center justify-center p-8">
+          <div class={`size-24 rounded-2xl ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center`}>
+            <span class={`material-symbols-outlined ${colorClasses.text} text-5xl`}>{icon}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+    <div class="text-center">
+      <h3 class="text-xl font-bold mb-2">{title}</h3>
+      <p class="text-sm text-gray-400 leading-relaxed px-4">
+        {description}
+      </p>
+    </div>
+  </a>
+) : (
+  <div class="project-card flex flex-col group cursor-pointer">
+    <div class="aspect-[16/10] rounded-2xl overflow-hidden bg-white/5 mb-6">
+      {image ? (
+        <img 
+          alt={`${title} preview`} 
+          class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-500" 
+          src={image}
+        />
+      ) : icon ? (
+        <div class="w-full h-full flex items-center justify-center p-8">
+          <div class={`size-24 rounded-2xl ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center`}>
+            <span class={`material-symbols-outlined ${colorClasses.text} text-5xl`}>{icon}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+    <div class="text-center">
+      <h3 class="text-xl font-bold mb-2">{title}</h3>
+      <p class="text-sm text-gray-400 leading-relaxed px-4">
+        {description}
+      </p>
+    </div>
+  </div>
+)}
