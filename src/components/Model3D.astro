@@ -79,11 +79,14 @@ const {
       0.1,
       1000
     );
-    // Position camera to view model in lower third of canvas
-    camera.position.set(0, 0, 5);
+    // Initial camera position (top view - from above)
+    const initialCameraPos = new THREE.Vector3(0, 3, 2);
+    // Final camera position (front view)
+    const finalCameraPos = new THREE.Vector3(0, 0, 5);
+    camera.position.copy(initialCameraPos);
     camera.lookAt(0, 0, 0);
 
-    // Renderer setup
+    // Renderer setup with shadow support
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
@@ -92,21 +95,48 @@ const {
     
     renderer.setSize(canvasWidth, canvasHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
     console.log('Model3D: Canvas initialized', { width: canvasWidth, height: canvasHeight, modelPath });
 
-    // Lighting - brighter lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    // Lighting - side lighting with shadows
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    directionalLight.position.set(5, 5, 5);
-    scene.add(directionalLight);
+    // Main side light (from the right side)
+    const sideLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sideLight.position.set(5, 3, 2);
+    sideLight.castShadow = true;
+    sideLight.shadow.mapSize.width = 2048;
+    sideLight.shadow.mapSize.height = 2048;
+    sideLight.shadow.camera.near = 0.5;
+    sideLight.shadow.camera.far = 50;
+    sideLight.shadow.camera.left = -10;
+    sideLight.shadow.camera.right = 10;
+    sideLight.shadow.camera.top = 10;
+    sideLight.shadow.camera.bottom = -10;
+    sideLight.shadow.bias = -0.0001;
+    scene.add(sideLight);
 
-    // Add additional fill light from the front
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    fillLight.position.set(-3, 2, 3);
+    // Fill light from the left side (softer)
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    fillLight.position.set(-3, 2, 2);
     scene.add(fillLight);
+
+    // Create ground plane to receive shadows (positioned below model)
+    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: 0x121212,
+      roughness: 0.8,
+      metalness: 0.2,
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    // Position ground below the model (will be adjusted after model loads)
+    ground.position.y = -2.5;
+    ground.receiveShadow = true;
+    scene.add(ground);
 
     // OrbitControls for mouse interaction
     const controls = new OrbitControls(camera, canvas);
@@ -116,21 +146,68 @@ const {
     controls.enablePan = false; // Disable panning for better UX
     controls.minDistance = 2;
     controls.maxDistance = 10;
-    controls.autoRotate = autoRotate;
-    controls.autoRotateSpeed = rotationSpeed * 50; // Convert to degrees per second
+    controls.autoRotate = false; // Will be enabled after intro animation
+    controls.autoRotateSpeed = rotationSpeed * 600; // Convert to degrees per second
     
-    // Stop auto rotate when user interacts
+    // Stop auto rotate when user interacts, resume after interaction ends
     controls.addEventListener('start', () => {
       controls.autoRotate = false;
+    });
+    
+    // Resume auto rotate after user interaction ends (only if intro animation is complete)
+    controls.addEventListener('end', () => {
+      // Only resume if intro animation is complete and model has no built-in animations
+      if (!introAnimationActive && (!gltfRef || !gltfRef.animations || gltfRef.animations.length === 0)) {
+        controls.autoRotate = autoRotate;
+      }
     });
 
     let model: THREE.Group | null = null;
     let mixer: THREE.AnimationMixer | null = null;
     const clock = new THREE.Clock();
 
+    // Intro animation state
+    let introAnimationActive = false;
+    let introStartTime = 0;
+    const introDuration = 2000; // 2.5 seconds
+    const initialRotationSpeed = rotationSpeed * 50 * 10; // 5x faster initially
+    const finalRotationSpeed = rotationSpeed * 200; // Normal speed
+
+    // Easing function (easeOutCubic)
+    function easeOutCubic(t: number): number {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
     // Start render loop immediately to show background
     function animate() {
       requestAnimationFrame(animate);
+
+      const elapsed = clock.getElapsedTime() * 1000; // Convert to milliseconds
+
+      // Handle intro animation (camera movement + rotation speed)
+      if (introAnimationActive && model) {
+        const progress = Math.min((elapsed - introStartTime) / introDuration, 1);
+        const easedProgress = easeOutCubic(progress);
+
+        // Animate camera position from top to front
+        camera.position.lerpVectors(initialCameraPos, finalCameraPos, easedProgress);
+        camera.lookAt(0, 0, 0);
+
+        // Animate rotation speed from fast to slow
+        const currentSpeed = initialRotationSpeed + (finalRotationSpeed - initialRotationSpeed) * easedProgress;
+        controls.autoRotateSpeed = currentSpeed;
+
+        // End intro animation
+        if (progress >= 1) {
+          introAnimationActive = false;
+          camera.position.copy(finalCameraPos);
+          controls.autoRotateSpeed = finalRotationSpeed;
+          // Enable auto rotate after intro
+          if (!gltfRef || !gltfRef.animations || gltfRef.animations.length === 0) {
+            controls.autoRotate = autoRotate;
+          }
+        }
+      }
 
       // Update controls (required for damping)
       controls.update();
@@ -141,21 +218,20 @@ const {
         mixer.update(delta);
       }
 
-      // Disable auto rotate on model when user interacts
-      if (controls.autoRotate && controls.object) {
-        // Auto rotate is handled by OrbitControls
-      }
-
       renderer.render(scene, camera);
     }
     
     // Start animation loop
     animate();
 
+    // Store gltf reference for intro animation check
+    let gltfRef: { animations: AnimationClip[] } | null = null;
+
     // Load and add the 3D model
     console.log('Model3D: Loading model from', modelPath);
     loadDracoModel(modelPath, decoderPath)
       .then((gltf) => {
+        gltfRef = gltf;
         console.log('Model3D: Model loaded successfully', gltf);
         model = gltf.scene;
 
@@ -186,12 +262,25 @@ const {
         const lowerThirdY = -1.0; // Position for lower third
         model.position.y = lowerThirdY - scaledMin.y;
         
+        // Adjust ground position to be just below the model
+        const modelBottomY = model.position.y + scaledMin.y;
+        ground.position.y = modelBottomY - 0.1; // Slightly below model bottom
+        
         console.log('Model3D: Model positioned in lower third', {
           scale,
           modelHeight: scaledHeight,
           modelBottom: scaledMin.y,
           finalY: model.position.y,
-          lowerThirdY
+          lowerThirdY,
+          groundY: ground.position.y
+        });
+
+        // Enable shadows for all meshes in the model
+        model.traverse((child: THREE.Object3D) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
         });
 
         scene.add(model);
@@ -206,12 +295,15 @@ const {
           controls.autoRotate = false;
         }
 
-        // Enable auto rotate only if no animations and autoRotate is enabled
+        // Start intro animation (camera movement + rotation speed)
         if (!gltf.animations || gltf.animations.length === 0) {
-          controls.autoRotate = autoRotate;
+          introAnimationActive = true;
+          introStartTime = clock.getElapsedTime() * 1000;
+          controls.autoRotate = true; // Enable rotation immediately for intro
+          controls.autoRotateSpeed = initialRotationSpeed; // Start with fast rotation
         }
 
-        console.log('Model3D: Model added to scene');
+        console.log('Model3D: Model added to scene with shadows, starting intro animation');
       })
       .catch((error) => {
         console.error('Model3D: Failed to load 3D model:', error);
