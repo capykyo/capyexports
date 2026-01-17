@@ -20,6 +20,23 @@ const worksCollection = defineCollection({
   }),
 });
 
+const resumeCollection = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/resume' }),
+  schema: z.object({
+    title: z.string(),
+    name: z.string(),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+    location: z.string().optional(),
+    website: z.string().url().optional(),
+    github: z.string().url().optional(),
+    linkedin: z.string().url().optional(),
+    xiaohongshu: z.string().url().optional(),
+    lang: z.enum(['zh', 'en', 'ja']).optional(), // Language code for the resume
+  }),
+});
+
 export const collections = {
   works: worksCollection,
+  resume: resumeCollection,
 };
