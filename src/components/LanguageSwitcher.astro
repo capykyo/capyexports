@@ -1,0 +1,64 @@
+---
+import { locales, getLocaleDisplayName, getLocalizedPath, type Locale } from '../i18n/utils';
+
+interface Props {
+  currentLocale: Locale;
+  currentPath: string;
+}
+
+const { currentLocale, currentPath } = Astro.props;
+
+// Get path without locale prefix for generating localized paths
+// Remove locale prefix if present, otherwise use the path as is
+const pathWithoutLocale = currentPath.replace(/^\/(zh|en|ja)/, '') || '/';
+---
+
+<div class="relative group">
+  <button
+    class="flex items-center gap-1 text-sm font-medium hover:text-white/70 transition-colors px-3 py-1.5 rounded-md hover:bg-white/5"
+    id="language-switcher-button"
+    aria-label="Switch language"
+    aria-haspopup="true"
+    aria-expanded="false"
+  >
+    <span>{getLocaleDisplayName(currentLocale)}</span>
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+  
+  <div
+    class="absolute right-0 mt-2 w-32 bg-card-dark border border-border-dark rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+    role="menu"
+    aria-labelledby="language-switcher-button"
+  >
+    {locales.map((locale) => {
+      const localizedPath = getLocalizedPath(pathWithoutLocale, locale);
+      const isActive = locale === currentLocale;
+      
+      return (
+        <a
+          href={localizedPath}
+          class={`block px-4 py-2 text-sm transition-colors ${
+            isActive
+              ? 'text-white bg-white/10 font-medium'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+          role="menuitem"
+        >
+          {getLocaleDisplayName(locale)}
+        </a>
+      );
+    })}
+  </div>
+</div>
+
+<style>
+  /* Ensure dropdown works on mobile with touch */
+  @media (hover: none) {
+    .group:active .group-hover\:opacity-100 {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+</style>
