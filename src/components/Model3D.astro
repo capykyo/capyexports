@@ -1,0 +1,254 @@
+---
+interface Props {
+  modelPath: string;
+  canvasId?: string;
+  autoRotate?: boolean;
+  rotationSpeed?: number;
+  backgroundColor?: string;
+  decoderPath?: string;
+}
+
+const {
+  modelPath,
+  canvasId = 'model-canvas',
+  autoRotate = true,
+  rotationSpeed = 0.01,
+  backgroundColor = '#121212',
+  decoderPath = '/draco/',
+} = Astro.props;
+---
+
+<div class="w-[280px] h-[280px] md:w-[640px] md:h-[640px] relative group pointer-events-auto">
+  <canvas 
+    id={canvasId} 
+    class="w-[280px] h-[280px] md:w-[640px] md:h-[640px] model-3d-canvas cursor-grab active:cursor-grabbing pointer-events-auto"
+    data-canvas-id={canvasId}
+    data-model-path={modelPath}
+    data-decoder-path={decoderPath}
+    data-background-color={backgroundColor}
+    data-auto-rotate={autoRotate.toString()}
+    data-rotation-speed={rotationSpeed.toString()}
+  ></canvas>
+</div>
+
+<script>
+  // @ts-expect-error - Three.js types are available but may not be resolved in Astro script tags
+  import * as THREE from 'three';
+  // @ts-expect-error - OrbitControls may not be resolved in Astro script tags
+  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+  import { loadDracoModel } from '../utils/loadDracoModel';
+  // @ts-expect-error - Three.js AnimationClip type may not be resolved in Astro script tags
+  import type { AnimationClip } from 'three';
+
+  // Wait for DOM to be ready
+  function initModel() {
+    // Find canvas by data attribute - this works even if ID is not set
+    let canvas = document.querySelector('canvas[data-canvas-id]') as HTMLCanvasElement;
+    if (!canvas) {
+      console.error('Model3D: Canvas element with data-canvas-id not found');
+      // Try to find by class as fallback
+      canvas = document.querySelector('.model-3d-canvas') as HTMLCanvasElement;
+      if (!canvas) {
+        console.error('Model3D: No canvas element found');
+        return;
+      }
+    }
+    
+    const canvasId = canvas.id || canvas.dataset.canvasId || 'model-canvas';
+    console.log('Model3D: Found canvas', { id: canvasId, element: canvas });
+
+    // Get props from data attributes
+    const modelPath = canvas.dataset.modelPath || '/models/capybara.glb';
+    const decoderPath = canvas.dataset.decoderPath || '/draco/';
+    const backgroundColor = canvas.dataset.backgroundColor || '#121212';
+    const autoRotate = canvas.dataset.autoRotate === 'true';
+    const rotationSpeed = parseFloat(canvas.dataset.rotationSpeed || '0.01');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(backgroundColor);
+
+    // Get canvas dimensions
+    const canvasWidth = canvas.clientWidth || canvas.offsetWidth || 800;
+    const canvasHeight = canvas.clientHeight || canvas.offsetHeight || 600;
+    const aspect = canvasWidth / canvasHeight || 4 / 3;
+    
+    // Camera setup - adjusted for craftz.dog style layout
+    const camera = new THREE.PerspectiveCamera(
+      50, // FOV
+      aspect,
+      0.1,
+      1000
+    );
+    // Position camera to view model in lower third of canvas
+    camera.position.set(0, 0, 5);
+    camera.lookAt(0, 0, 0);
+
+    // Renderer setup
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+    });
+    
+    renderer.setSize(canvasWidth, canvasHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    console.log('Model3D: Canvas initialized', { width: canvasWidth, height: canvasHeight, modelPath });
+
+    // Lighting - brighter lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    directionalLight.position.set(5, 5, 5);
+    scene.add(directionalLight);
+
+    // Add additional fill light from the front
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    fillLight.position.set(-3, 2, 3);
+    scene.add(fillLight);
+
+    // OrbitControls for mouse interaction
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true; // Smooth camera movement
+    controls.dampingFactor = 0.05;
+    controls.enableZoom = true;
+    controls.enablePan = false; // Disable panning for better UX
+    controls.minDistance = 2;
+    controls.maxDistance = 10;
+    controls.autoRotate = autoRotate;
+    controls.autoRotateSpeed = rotationSpeed * 50; // Convert to degrees per second
+    
+    // Stop auto rotate when user interacts
+    controls.addEventListener('start', () => {
+      controls.autoRotate = false;
+    });
+
+    let model: THREE.Group | null = null;
+    let mixer: THREE.AnimationMixer | null = null;
+    const clock = new THREE.Clock();
+
+    // Start render loop immediately to show background
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Update controls (required for damping)
+      controls.update();
+
+      // Update animations
+      if (mixer) {
+        const delta = clock.getDelta();
+        mixer.update(delta);
+      }
+
+      // Disable auto rotate on model when user interacts
+      if (controls.autoRotate && controls.object) {
+        // Auto rotate is handled by OrbitControls
+      }
+
+      renderer.render(scene, camera);
+    }
+    
+    // Start animation loop
+    animate();
+
+    // Load and add the 3D model
+    console.log('Model3D: Loading model from', modelPath);
+    loadDracoModel(modelPath, decoderPath)
+      .then((gltf) => {
+        console.log('Model3D: Model loaded successfully', gltf);
+        model = gltf.scene;
+
+        // Position model in lower third of canvas (craftz.dog style)
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        // Scale to fit the container (slightly smaller for better composition)
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 1.8 / maxDim;
+        
+        // Center horizontally and in depth first
+        model.position.x = -center.x * scale;
+        model.position.z = -center.z * scale;
+        
+        // Apply scaling
+        model.scale.multiplyScalar(scale);
+
+        // Recalculate bounding box after scaling
+        const scaledBox = new THREE.Box3().setFromObject(model);
+        const scaledMin = scaledBox.min;
+        const scaledHeight = scaledBox.getSize(new THREE.Vector3()).y;
+        
+        // Position model in lower third of canvas
+        // Canvas visible range is approximately -2.5 to 2.5 in Y
+        // Lower third means bottom at around -0.8 to -1.2
+        const lowerThirdY = -1.0; // Position for lower third
+        model.position.y = lowerThirdY - scaledMin.y;
+        
+        console.log('Model3D: Model positioned in lower third', {
+          scale,
+          modelHeight: scaledHeight,
+          modelBottom: scaledMin.y,
+          finalY: model.position.y,
+          lowerThirdY
+        });
+
+        scene.add(model);
+
+        // Play animations if any
+        if (gltf.animations && gltf.animations.length > 0) {
+          mixer = new THREE.AnimationMixer(model);
+          gltf.animations.forEach((clip: AnimationClip) => {
+            mixer!.clipAction(clip).play();
+          });
+          // Disable auto rotate when animations are playing
+          controls.autoRotate = false;
+        }
+
+        // Enable auto rotate only if no animations and autoRotate is enabled
+        if (!gltf.animations || gltf.animations.length === 0) {
+          controls.autoRotate = autoRotate;
+        }
+
+        console.log('Model3D: Model added to scene');
+      })
+      .catch((error) => {
+        console.error('Model3D: Failed to load 3D model:', error);
+        console.error('Model3D: Error details:', {
+          modelPath,
+          decoderPath,
+          error: error.message || error
+        });
+      });
+
+    // Handle window resize
+    const handleResize = () => {
+      const newWidth = canvas.clientWidth || canvas.offsetWidth || 800;
+      const newHeight = canvas.clientHeight || canvas.offsetHeight || 600;
+
+      camera.aspect = newWidth / newHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(newWidth, newHeight);
+      controls.update();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup on component unmount
+    window.addEventListener('beforeunload', () => {
+      window.removeEventListener('resize', handleResize);
+      if (mixer) {
+        mixer.stopAllAction();
+      }
+    });
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initModel);
+  } else {
+    initModel();
+  }
+</script>
