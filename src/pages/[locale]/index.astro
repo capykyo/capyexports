@@ -48,17 +48,17 @@ const pageDescription = t('meta.description', locale as Locale);
   </head>
   <body class="min-h-screen">
     <Header locale={locale as Locale} />
-    <main class="max-w-[800px] mx-auto px-6 pt-32 pb-20 relative">
+    <main class="max-w-[800px] mx-auto px-6 md:pt-32 pt-16 pb-20 relative">
       <!-- Hero Section with 3D Container -->
-      <div class="h-[240px] md:h-[340px] relative pointer-events-none">
-        <section class="w-[280px] h-[280px] md:w-[640px] md:h-[640px] absolute -top-[60px] md:-top-[100px] left-1/2 transform -translate-x-1/2 z-0 pointer-events-auto">
+      <div class="h-[220px] md:h-[360px] relative pointer-events-none">
+        <section class="w-[calc(100%-3rem)] aspect-square md:w-[800px] md:h-[640px] absolute -top-[40px] md:-top-[100px] left-1/2 transform -translate-x-1/2 z-0 pointer-events-auto">
           <div class="relative w-full h-full">
             <Model3D 
               modelPath="/models/capybara.glb"
               canvasId="capybara-canvas"
               autoRotate={true}
               rotationSpeed={0.01}
-              backgroundColor="#121212"
+              backgroundColor="#202023"
             />
           </div>
         </section>

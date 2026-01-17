@@ -13,15 +13,15 @@ const {
   canvasId = 'model-canvas',
   autoRotate = true,
   rotationSpeed = 0.01,
-  backgroundColor = '#121212',
+  backgroundColor = '#202023',
   decoderPath = '/draco/',
 } = Astro.props;
 ---
 
-<div class="w-[280px] h-[280px] md:w-[640px] md:h-[640px] relative group pointer-events-auto">
+<div class="w-full h-full relative group pointer-events-auto">
   <canvas 
     id={canvasId} 
-    class="w-[280px] h-[280px] md:w-[640px] md:h-[640px] model-3d-canvas cursor-grab active:cursor-grabbing pointer-events-auto"
+    class="w-full h-full model-3d-canvas cursor-grab active:cursor-grabbing pointer-events-auto"
     data-canvas-id={canvasId}
     data-model-path={modelPath}
     data-decoder-path={decoderPath}
@@ -60,7 +60,7 @@ const {
     // Get props from data attributes
     const modelPath = canvas.dataset.modelPath || '/models/capybara.glb';
     const decoderPath = canvas.dataset.decoderPath || '/draco/';
-    const backgroundColor = canvas.dataset.backgroundColor || '#121212';
+    const backgroundColor = canvas.dataset.backgroundColor || '#202023';
     const autoRotate = canvas.dataset.autoRotate === 'true';
     const rotationSpeed = parseFloat(canvas.dataset.rotationSpeed || '0.01');
 
@@ -93,50 +93,28 @@ const {
       alpha: false,
     });
     
+    // Ensure canvas CSS dimensions are 100% to follow container
+    // This is critical for responsive behavior
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    
     renderer.setSize(canvasWidth, canvasHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Shadows disabled - no ground plane needed
     
-    console.log('Model3D: Canvas initialized', { width: canvasWidth, height: canvasHeight, modelPath });
-
-    // Lighting - side lighting with shadows
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
-
-    // Main side light (from the right side)
-    const sideLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    sideLight.position.set(5, 3, 2);
-    sideLight.castShadow = true;
-    sideLight.shadow.mapSize.width = 2048;
-    sideLight.shadow.mapSize.height = 2048;
-    sideLight.shadow.camera.near = 0.5;
-    sideLight.shadow.camera.far = 50;
-    sideLight.shadow.camera.left = -10;
-    sideLight.shadow.camera.right = 10;
-    sideLight.shadow.camera.top = 10;
-    sideLight.shadow.camera.bottom = -10;
-    sideLight.shadow.bias = -0.0001;
-    scene.add(sideLight);
-
-    // Fill light from the left side (softer)
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    fillLight.position.set(-3, 2, 2);
-    scene.add(fillLight);
-
-    // Create ground plane to receive shadows (positioned below model)
-    const groundGeometry = new THREE.PlaneGeometry(20, 20);
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x121212,
-      roughness: 0.8,
-      metalness: 0.2,
+    console.log('Model3D: Canvas initialized', { 
+      width: canvasWidth, 
+      height: canvasHeight, 
+      modelPath,
+      canvasClientWidth: canvas.clientWidth,
+      canvasClientHeight: canvas.clientHeight,
+      canvasStyleWidth: canvas.style.width,
+      canvasStyleHeight: canvas.style.height
     });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    // Position ground below the model (will be adjusted after model loads)
-    ground.position.y = -2.5;
-    ground.receiveShadow = true;
-    scene.add(ground);
+
+    // Simple ambient lighting only - no shadows or ground plane
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    scene.add(ambientLight);
 
     // OrbitControls for mouse interaction
     const controls = new OrbitControls(camera, canvas);
@@ -242,7 +220,9 @@ const {
 
         // Scale to fit the container (slightly smaller for better composition)
         const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 1.8 / maxDim;
+        const baseScale = 1.8 / maxDim;
+        // Apply 1.2x initial zoom
+        const scale = baseScale * 1.2;
         
         // Center horizontally and in depth first
         model.position.x = -center.x * scale;
@@ -262,25 +242,12 @@ const {
         const lowerThirdY = -1.0; // Position for lower third
         model.position.y = lowerThirdY - scaledMin.y;
         
-        // Adjust ground position to be just below the model
-        const modelBottomY = model.position.y + scaledMin.y;
-        ground.position.y = modelBottomY - 0.1; // Slightly below model bottom
-        
         console.log('Model3D: Model positioned in lower third', {
           scale,
           modelHeight: scaledHeight,
           modelBottom: scaledMin.y,
           finalY: model.position.y,
-          lowerThirdY,
-          groundY: ground.position.y
-        });
-
-        // Enable shadows for all meshes in the model
-        model.traverse((child: THREE.Object3D) => {
-          if (child instanceof THREE.Mesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
+          lowerThirdY
         });
 
         scene.add(model);
@@ -303,7 +270,7 @@ const {
           controls.autoRotateSpeed = initialRotationSpeed; // Start with fast rotation
         }
 
-        console.log('Model3D: Model added to scene with shadows, starting intro animation');
+        console.log('Model3D: Model added to scene, starting intro animation');
       })
       .catch((error) => {
         console.error('Model3D: Failed to load 3D model:', error);
@@ -314,25 +281,194 @@ const {
         });
       });
 
-    // Handle window resize
-    const handleResize = () => {
-      const newWidth = canvas.clientWidth || canvas.offsetWidth || 800;
-      const newHeight = canvas.clientHeight || canvas.offsetHeight || 600;
+    // Track last resize time to prevent conflicts between ResizeObserver and window resize
+    let lastResizeTime = 0;
+    const RESIZE_DEBOUNCE_MS = 200;
 
+    // Handle resize with ResizeObserver for better responsiveness
+    const handleResize = (entry?: ResizeObserverEntry) => {
+      let newWidth: number;
+      let newHeight: number;
+
+      if (entry) {
+        // Use ResizeObserver entry for precise dimensions
+        // Prefer borderBoxSize if available (more accurate)
+        if (entry.borderBoxSize && entry.borderBoxSize.length > 0) {
+          newWidth = entry.borderBoxSize[0].inlineSize;
+          newHeight = entry.borderBoxSize[0].blockSize;
+        } else if (entry.contentBoxSize && entry.contentBoxSize.length > 0) {
+          newWidth = entry.contentBoxSize[0].inlineSize;
+          newHeight = entry.contentBoxSize[0].blockSize;
+        } else {
+          // Fallback to contentRect (deprecated but widely supported)
+          const { width, height } = entry.contentRect;
+          newWidth = width || canvas.clientWidth || 800;
+          newHeight = height || canvas.clientHeight || 600;
+        }
+      } else {
+        // Fallback: get dimensions from canvas or its container
+        const container = canvas.parentElement;
+        newWidth = canvas.clientWidth || container?.clientWidth || 800;
+        newHeight = canvas.clientHeight || container?.clientHeight || 600;
+      }
+
+      // Ensure we have valid dimensions
+      if (!newWidth || !newHeight || newWidth <= 0 || newHeight <= 0) {
+        console.warn('Model3D: Invalid dimensions', { newWidth, newHeight });
+        return;
+      }
+
+      // Get current renderer size (accounting for pixel ratio)
+      const currentPixelRatio = renderer.getPixelRatio();
+      const currentWidth = renderer.domElement.width / currentPixelRatio;
+      const currentHeight = renderer.domElement.height / currentPixelRatio;
+
+      // Skip if dimensions haven't changed (avoid unnecessary updates)
+      // Use a small threshold to account for floating point precision
+      if (Math.abs(newWidth - currentWidth) < 1 && Math.abs(newHeight - currentHeight) < 1) {
+        return;
+      }
+
+      // Update camera aspect ratio
       camera.aspect = newWidth / newHeight;
       camera.updateProjectionMatrix();
 
-      renderer.setSize(newWidth, newHeight);
+      // Update renderer size and pixel ratio
+      const pixelRatio = Math.min(window.devicePixelRatio, 2);
+      renderer.setPixelRatio(pixelRatio);
+      // setSize with updateStyle=false means we control CSS separately
+      // This ensures canvas internal resolution matches display size
+      renderer.setSize(newWidth, newHeight, false);
+      
+      // Ensure canvas CSS dimensions match container (important for responsive)
+      // Three.js setSize sets the canvas width/height attributes (internal resolution)
+      // We need to ensure CSS width/height stay at 100% to follow container
+      if (canvas.style.width !== '100%' || canvas.style.height !== '100%') {
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+      }
+      
+      // Update controls
       controls.update();
+      
+      // Update last resize time to prevent window resize from overriding
+      lastResizeTime = Date.now();
+      
+      // Verify actual canvas display size
+      const actualDisplayWidth = canvas.clientWidth;
+      const actualDisplayHeight = canvas.clientHeight;
+      const actualRenderWidth = canvas.width;
+      const actualRenderHeight = canvas.height;
+      
+      console.log('Model3D: Canvas resized', { 
+        targetWidth: newWidth, 
+        targetHeight: newHeight,
+        actualDisplayWidth,
+        actualDisplayHeight,
+        actualRenderWidth,
+        actualRenderHeight,
+        pixelRatio,
+        entry: !!entry,
+        previousSize: { width: currentWidth, height: currentHeight }
+      });
     };
 
-    window.addEventListener('resize', handleResize);
+    // Use ResizeObserver to watch canvas element size changes directly
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        console.log('Model3D: ResizeObserver triggered', { 
+          width, 
+          height, 
+          target: entry.target.tagName,
+          canvasWidth: canvas.clientWidth,
+          canvasHeight: canvas.clientHeight
+        });
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          handleResize(entry);
+        });
+      }
+    });
+
+    // Observe the canvas element itself for size changes
+    resizeObserver.observe(canvas);
+    console.log('Model3D: ResizeObserver attached to canvas', { 
+      canvasWidth: canvas.clientWidth, 
+      canvasHeight: canvas.clientHeight 
+    });
+
+    // Also observe the container in case canvas size is controlled by parent
+    const container = canvas.parentElement;
+    if (container) {
+      resizeObserver.observe(container);
+      console.log('Model3D: ResizeObserver attached to container', { 
+        containerWidth: container.clientWidth, 
+        containerHeight: container.clientHeight 
+      });
+    }
+
+    // Also listen to window resize for device orientation changes
+    // This is mainly a fallback - ResizeObserver should handle most cases
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const windowResizeHandler = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const now = Date.now();
+        // Skip if ResizeObserver just handled a resize (within debounce window)
+        if (now - lastResizeTime < RESIZE_DEBOUNCE_MS) {
+          console.log('Model3D: Skipping window resize (ResizeObserver handled it recently)');
+          return;
+        }
+
+        // Force a resize check after a delay to ensure CSS has updated
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Double RAF ensures CSS transitions/animations have completed
+            const container = canvas.parentElement;
+            const newWidth = canvas.clientWidth || container?.clientWidth || 800;
+            const newHeight = canvas.clientHeight || container?.clientHeight || 600;
+            
+            // Get current renderer size
+            const currentPixelRatio = renderer.getPixelRatio();
+            const currentWidth = renderer.domElement.width / currentPixelRatio;
+            const currentHeight = renderer.domElement.height / currentPixelRatio;
+            
+            // Only update if dimensions actually differ (avoid duplicate updates)
+            if (Math.abs(newWidth - currentWidth) > 1 || Math.abs(newHeight - currentHeight) > 1) {
+              console.log('Model3D: Window resize handler triggered', { 
+                newWidth, 
+                newHeight, 
+                currentWidth, 
+                currentHeight 
+              });
+              handleResize();
+            }
+          });
+        });
+      }, RESIZE_DEBOUNCE_MS); // Delay to let ResizeObserver handle it first
+    };
+    window.addEventListener('resize', windowResizeHandler);
 
     // Cleanup on component unmount
-    window.addEventListener('beforeunload', () => {
-      window.removeEventListener('resize', handleResize);
+    const cleanup = () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', windowResizeHandler);
+      clearTimeout(resizeTimeout);
       if (mixer) {
         mixer.stopAllAction();
+      }
+    };
+
+    window.addEventListener('beforeunload', cleanup);
+    
+    // Also cleanup when page is hidden (for SPA navigation)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // Optionally pause animation when page is hidden
+      } else {
+        // Resume when page becomes visible
+        handleResize();
       }
     });
   }

@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        'background-dark': '#121212',
+        'background-dark': '#202023',
         'card-dark': '#1e1e1e',
         'border-dark': '#2d2d2d',
       },
