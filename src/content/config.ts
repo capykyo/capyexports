@@ -11,6 +11,12 @@ const worksCollection = defineCollection({
     date: z.date().optional(),
     link: z.string().url().optional(),
     lang: z.enum(['zh', 'en', 'ja']).optional(), // Language code for the work
+    // Additional fields for detail page
+    website: z.string().url().optional(),
+    platform: z.string().optional(),
+    stack: z.string().optional(),
+    blogpost: z.string().url().optional(),
+    content: z.string().optional(), // Markdown content for detail page
   }),
 });
 

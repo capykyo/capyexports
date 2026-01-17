@@ -12,6 +12,8 @@ export type TranslationKey =
   | 'footer.social.github'
   | 'footer.social.email'
   | 'works.title'
+  | 'works.back'
+  | 'works.visit'
   | 'meta.title'
   | 'meta.description';
 
@@ -27,6 +29,8 @@ export const translations: Record<'zh' | 'en' | 'ja', Translations> = {
     'footer.social.github': 'GitHub',
     'footer.social.email': '邮箱',
     'works.title': '作品',
+    'works.back': '返回作品',
+    'works.visit': '访问网站',
     'meta.title': '卡皮智出工作室',
     'meta.description': '卡皮智出 - 作品集网站',
   },
@@ -39,6 +43,8 @@ export const translations: Record<'zh' | 'en' | 'ja', Translations> = {
     'footer.social.github': 'GitHub',
     'footer.social.email': 'Email',
     'works.title': 'Works',
+    'works.back': 'Back to Works',
+    'works.visit': 'Visit Website',
     'meta.title': 'Capyexports',
     'meta.description': 'Capyexports - Portfolio Website',
   },
@@ -51,6 +57,8 @@ export const translations: Record<'zh' | 'en' | 'ja', Translations> = {
     'footer.social.github': 'GitHub',
     'footer.social.email': 'メール',
     'works.title': '作品',
+    'works.back': '作品に戻る',
+    'works.visit': 'ウェブサイトを訪問',
     'meta.title': 'Capyexports',
     'meta.description': 'Capyexports - ポートフォリオサイト',
   },

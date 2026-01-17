@@ -6,9 +6,14 @@ interface Props {
   icon?: string;
   iconColor?: string;
   link?: string;
+  slug?: string;
+  locale?: string;
 }
 
-const { title, description, image, icon, iconColor = "orange", link } = Astro.props;
+const { title, description, image, icon, iconColor = "orange", link, slug, locale } = Astro.props;
+
+// Determine the href - prefer detail page if slug is provided, otherwise use external link
+const href = slug && locale ? `/${locale}/works/${slug}` : link;
 
 // Map icon colors to Tailwind classes
 const iconColorClasses: Record<string, { bg: string; border: string; text: string }> = {
@@ -37,8 +42,8 @@ const iconColorClasses: Record<string, { bg: string; border: string; text: strin
 const colorClasses = iconColorClasses[iconColor] || iconColorClasses.orange;
 ---
 
-{link ? (
-  <a href={link} class="project-card flex flex-col group cursor-pointer">
+{href ? (
+  <a href={href} class="project-card flex flex-col group cursor-pointer">
     <div class="aspect-[16/10] rounded-2xl overflow-hidden bg-white/5 mb-6">
       {image ? (
         <img 

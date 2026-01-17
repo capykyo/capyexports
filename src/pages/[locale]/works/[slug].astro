@@ -1,0 +1,179 @@
+---
+import { ViewTransitions } from 'astro:transitions';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import { getCollection, getEntry } from 'astro:content';
+import { locales, type Locale } from '../../../i18n/utils';
+import { t } from '../../../i18n/translations';
+import '../../../styles/global.css';
+import { marked } from 'marked';
+
+// Configure marked for better rendering
+marked.setOptions({
+  breaks: true, // Convert line breaks to <br>
+  gfm: true, // GitHub Flavored Markdown
+});
+
+// Export getStaticPaths for dynamic route
+export async function getStaticPaths() {
+  const allWorks = await getCollection('works');
+  const paths: Array<{ params: { locale: string; slug: string } }> = [];
+
+  // Generate paths for each locale and work combination
+  for (const locale of locales) {
+    const worksForLocale = allWorks.filter((work) => work.data.lang === locale);
+    for (const work of worksForLocale) {
+      // Use filename as slug (remove .md extension)
+      const slug = work.id.split('/').pop()?.replace('.md', '') || '';
+      if (slug) {
+        paths.push({
+          params: { locale, slug },
+        });
+      }
+    }
+  }
+
+  return paths;
+}
+
+// Get params
+const { locale, slug } = Astro.params;
+
+// Get all works from Content Collections
+const allWorks = await getCollection('works');
+
+// Find the work matching the slug and locale
+const workMatch = allWorks.find((w) => {
+  const workSlug = w.id.split('/').pop()?.replace('.md', '') || '';
+  return workSlug === slug && w.data.lang === locale;
+});
+
+// If work not found, redirect to home
+if (!workMatch) {
+  return Astro.redirect(`/${locale}/`);
+}
+
+// For glob loader, use getEntry to get the entry with render capability
+// The glob loader returns entries without render method, so we need to get it again
+let Content: any = null;
+let renderedHtml: string | null = null;
+let workEntry = workMatch;
+
+try {
+  const entry = await getEntry('works', workMatch.id);
+  if (entry) {
+    workEntry = entry;
+    // Check if entry has render method (for standard content collections)
+    if ('render' in entry && typeof entry.render === 'function') {
+      const rendered = await entry.render();
+      Content = rendered.Content;
+    } else if (entry.body) {
+      // Render Markdown to HTML using marked
+      renderedHtml = marked(entry.body) as string;
+    }
+  }
+} catch (e) {
+  // If getEntry fails, use the original workMatch
+  workEntry = workMatch;
+  // If workMatch has body, render it
+  if (workMatch.body) {
+    renderedHtml = marked(workMatch.body) as string;
+  }
+  console.warn('Could not get entry with render, using original:', e);
+}
+
+// Get page title
+const pageTitle = `${workEntry.data.title} - ${t('meta.title', locale as Locale)}`;
+const pageDescription = workEntry.data.description;
+---
+
+<!doctype html>
+<html lang={locale as string}>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={pageDescription} />
+    <title>{pageTitle}</title>
+    <ViewTransitions />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+  </head>
+  <body class="min-h-screen">
+    <Header locale={locale as Locale} />
+    <main class="max-w-[800px] mx-auto px-6 md:pt-32 pt-16 pb-20">
+      <!-- Back Button -->
+      <div class="mb-8">
+        <a 
+          href={`/${locale}/#works`}
+          class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors duration-200"
+        >
+          <span class="material-symbols-outlined text-xl">arrow_back</span>
+          <span>{t('works.back', locale as Locale)}</span>
+        </a>
+      </div>
+
+      <!-- Work Header -->
+      <header class="mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">{workEntry.data.title}</h1>
+        {workEntry.data.date && (
+          <p class="text-gray-400 text-sm mb-6">
+            {new Date(workEntry.data.date).getFullYear()}
+            {workEntry.data.date && new Date(workEntry.data.date).getMonth() === 0 && new Date(workEntry.data.date).getDate() === 1 
+              ? '-' 
+              : ''}
+          </p>
+        )}
+        <p class="text-lg text-gray-300 leading-relaxed mb-6">{workEntry.data.description}</p>
+        
+        {workEntry.data.tags && workEntry.data.tags.length > 0 && (
+          <div class="flex flex-wrap gap-2 mb-6">
+            {workEntry.data.tags.map((tag) => (
+              <span class="px-3 py-1 text-sm rounded-full bg-white/5 border border-white/10 text-gray-400">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {workEntry.data.link && (
+          <a 
+            href={workEntry.data.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 text-white hover:text-gray-300 transition-colors duration-200 underline underline-offset-4"
+          >
+            <span>{t('works.visit', locale as Locale)}</span>
+            <span class="material-symbols-outlined text-lg">open_in_new</span>
+          </a>
+        )}
+      </header>
+
+      <!-- Work Image -->
+      {workEntry.data.image && (
+        <div class="mb-12">
+          <div class="aspect-[16/10] rounded-2xl overflow-hidden bg-white/5">
+            <img 
+              src={workEntry.data.image}
+              alt={workEntry.data.title}
+              class="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      )}
+
+      <!-- Work Content -->
+      {Content ? (
+        <article class="prose prose-invert prose-gray max-w-none">
+          <Content />
+        </article>
+      ) : renderedHtml ? (
+        <article class="prose prose-invert prose-gray max-w-none">
+          <div set:html={renderedHtml} />
+        </article>
+      ) : null}
+    </main>
+    <Footer locale={locale as Locale} />
+  </body>
+</html>
