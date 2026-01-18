@@ -12,10 +12,21 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
+      globals: {
+        process: 'readonly',
+      },
     },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+  {
+    files: ['astro.config.mjs', '*.config.{js,mjs,ts}'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+      },
     },
   },
   {
