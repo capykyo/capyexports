@@ -1,5 +1,6 @@
 ---
 import { locales, getLocaleDisplayName, getLocalizedPath, type Locale } from '../i18n/utils';
+import { getUrl } from '../utils';
 
 interface Props {
   currentLocale: Locale;
@@ -10,7 +11,10 @@ const { currentLocale, currentPath } = Astro.props;
 
 // Get path without locale prefix for generating localized paths
 // Remove locale prefix if present, otherwise use the path as is
-const pathWithoutLocale = currentPath.replace(/^\/(zh|en|ja)/, '') || '/';
+// Also remove base path if present
+const base = import.meta.env.BASE_URL;
+const pathWithoutBase = currentPath.replace(new RegExp(`^${base}`), '');
+const pathWithoutLocale = pathWithoutBase.replace(/^\/(zh|en|ja)/, '') || '/';
 ---
 
 <div class="relative group">
@@ -38,7 +42,7 @@ const pathWithoutLocale = currentPath.replace(/^\/(zh|en|ja)/, '') || '/';
       
       return (
         <a
-          href={localizedPath}
+          href={getUrl(localizedPath)}
           class={`block px-4 py-2 text-sm transition-colors ${
             isActive
               ? 'text-white bg-white/10 font-medium'

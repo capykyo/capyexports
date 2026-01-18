@@ -7,6 +7,7 @@ import Model3D from '../../components/Model3D.astro';
 import { getCollection } from 'astro:content';
 import { locales, type Locale } from '../../i18n/utils';
 import { t } from '../../i18n/translations';
+import { getUrl } from '../../utils';
 import '../../styles/global.css';
 
 // Export getStaticPaths for dynamic route
@@ -39,7 +40,7 @@ const pageDescription = t('meta.description', locale as Locale);
 <html lang={locale as string}>
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href={getUrl("/favicon.svg")} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={pageDescription} />
@@ -56,11 +57,12 @@ const pageDescription = t('meta.description', locale as Locale);
         <section class="w-[calc(100%-3rem)] aspect-square md:w-[800px] md:h-[640px] absolute -top-[40px] md:-top-[100px] left-1/2 transform -translate-x-1/2 z-0 pointer-events-auto">
           <div class="relative w-full h-full">
             <Model3D 
-              modelPath="/models/capybara.glb"
+              modelPath={getUrl("/models/capybara.glb")}
               canvasId="capybara-canvas"
               autoRotate={true}
               rotationSpeed={0.01}
               backgroundColor="#202023"
+              decoderPath={getUrl("/draco/")}
             />
           </div>
         </section>

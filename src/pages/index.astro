@@ -1,7 +1,22 @@
 ---
 // Root index page - redirect to /zh (default locale)
 import { defaultLocale } from '../i18n/utils';
+import { getUrl } from '../utils';
 
-// Use Astro.redirect for static output
-return Astro.redirect(`/${defaultLocale}`, 301);
+// Get redirect path with base
+const redirectPath = getUrl(`/${defaultLocale}/`);
 ---
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url={redirectPath}" />
+    <script>
+      window.location.href = '{redirectPath}';
+    </script>
+    <title>Redirecting...</title>
+  </head>
+  <body>
+    <p>If you are not redirected, <a href={redirectPath}>click here</a>.</p>
+  </body>
+</html>

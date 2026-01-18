@@ -1,4 +1,6 @@
 ---
+import { getUrl } from '../utils';
+
 interface Props {
   title: string;
   description: string;
@@ -13,7 +15,7 @@ interface Props {
 const { title, description, image, icon, iconColor = "orange", link, slug, locale } = Astro.props;
 
 // Determine the href - prefer detail page if slug is provided, otherwise use external link
-const href = slug && locale ? `/${locale}/works/${slug}` : link;
+const href = slug && locale ? getUrl(`/${locale}/works/${slug}`) : link;
 
 // Map icon colors to Tailwind classes
 const iconColorClasses: Record<string, { bg: string; border: string; text: string }> = {

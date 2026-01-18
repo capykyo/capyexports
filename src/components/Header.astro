@@ -1,6 +1,7 @@
 ---
 import { t } from '../i18n/translations';
 import { type Locale } from '../i18n/utils';
+import { getUrl } from '../utils';
 import LanguageSwitcher from './LanguageSwitcher.astro';
 
 interface Props {
@@ -22,8 +23,8 @@ const currentPath = Astro.url.pathname;
       <span class="font-bold tracking-tight text-lg">{t('meta.title', locale)}</span>
     </div>
     <nav class="flex items-center gap-8">
-      <a class="text-sm font-medium hover:text-white/70 transition-colors" href={`/${locale}/`}>{t('nav.works', locale)}</a>
-      <a class="text-sm font-medium hover:text-white/70 transition-colors" href={`/${locale}/resume`}>{t('nav.resume', locale)}</a>
+      <a class="text-sm font-medium hover:text-white/70 transition-colors" href={getUrl(`/${locale}/`)}>{t('nav.works', locale)}</a>
+      <a class="text-sm font-medium hover:text-white/70 transition-colors" href={getUrl(`/${locale}/resume`)}>{t('nav.resume', locale)}</a>
       <LanguageSwitcher currentLocale={locale} currentPath={currentPath} />
     </nav>
   </div>

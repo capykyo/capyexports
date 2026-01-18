@@ -5,6 +5,7 @@ import Footer from '../../../components/Footer.astro';
 import { getCollection, getEntry } from 'astro:content';
 import { locales, type Locale } from '../../../i18n/utils';
 import { t } from '../../../i18n/translations';
+import { getUrl } from '../../../utils';
 import '../../../styles/global.css';
 import { marked } from 'marked';
 
@@ -94,7 +95,7 @@ const pageDescription = workEntry.data.description;
 <html lang={locale as string}>
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href={getUrl("/favicon.svg")} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={pageDescription} />
@@ -109,7 +110,7 @@ const pageDescription = workEntry.data.description;
       <!-- Back Button -->
       <div class="mb-8">
         <a 
-          href={`/${locale}/`}
+          href={getUrl(`/${locale}/`)}
           class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors duration-200"
         >
           <span class="material-symbols-outlined text-xl">arrow_back</span>
