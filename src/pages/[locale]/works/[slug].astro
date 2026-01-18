@@ -55,6 +55,9 @@ if (!workMatch) {
 
 // For glob loader, use getEntry to get the entry with render capability
 // The glob loader returns entries without render method, so we need to get it again
+// Content is an Astro component from Content Collections render() method
+// Using a more specific type would require importing Astro's internal types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let Content: any = null;
 let renderedHtml: string | null = null;
 let workEntry = workMatch;
@@ -106,7 +109,7 @@ const pageDescription = workEntry.data.description;
       <!-- Back Button -->
       <div class="mb-8">
         <a 
-          href={`/${locale}/#works`}
+          href={`/${locale}/`}
           class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors duration-200"
         >
           <span class="material-symbols-outlined text-xl">arrow_back</span>

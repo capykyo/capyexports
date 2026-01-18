@@ -32,16 +32,24 @@ const {
 </div>
 
 <script>
-  // @ts-expect-error - Three.js types are available but may not be resolved in Astro script tags
   import * as THREE from 'three';
-  // @ts-expect-error - OrbitControls may not be resolved in Astro script tags
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { loadDracoModel } from '../utils/loadDracoModel';
-  // @ts-expect-error - Three.js AnimationClip type may not be resolved in Astro script tags
   import type { AnimationClip } from 'three';
+
+  // Global state to track current animation loop
+  let currentAnimationId: number | null = null;
+  let currentIsAnimating = false;
 
   // Wait for DOM to be ready
   function initModel() {
+    // Stop any existing animation loop before starting a new one
+    if (currentIsAnimating && currentAnimationId !== null) {
+      console.log('Model3D: Stopping existing animation loop before reinitializing');
+      currentIsAnimating = false;
+      cancelAnimationFrame(currentAnimationId);
+      currentAnimationId = null;
+    }
     // Find canvas by data attribute - this works even if ID is not set
     let canvas = document.querySelector('canvas[data-canvas-id]') as HTMLCanvasElement;
     if (!canvas) {
@@ -151,6 +159,10 @@ const {
     const initialRotationSpeed = rotationSpeed * 50 * 10; // 5x faster initially
     const finalRotationSpeed = rotationSpeed * 200; // Normal speed
 
+    // Animation loop control (local to this initModel call)
+    let animationId: number | null = null;
+    let isAnimating = false;
+
     // Easing function (easeOutCubic)
     function easeOutCubic(t: number): number {
       return 1 - Math.pow(1 - t, 3);
@@ -158,7 +170,22 @@ const {
 
     // Start render loop immediately to show background
     function animate() {
-      requestAnimationFrame(animate);
+      // Check if animation should continue
+      if (!isAnimating) {
+        return;
+      }
+
+      animationId = requestAnimationFrame(animate);
+      currentAnimationId = animationId; // Update global state
+
+      // Safety check: ensure renderer, scene, and camera are still valid
+      if (!renderer || !scene || !camera) {
+        console.warn('Model3D: Renderer, scene, or camera is null, stopping animation');
+        isAnimating = false;
+        currentIsAnimating = false;
+        currentAnimationId = null;
+        return;
+      }
 
       const elapsed = clock.getElapsedTime() * 1000; // Convert to milliseconds
 
@@ -200,6 +227,9 @@ const {
     }
     
     // Start animation loop
+    isAnimating = true;
+    currentIsAnimating = true; // Update global state
+    // Start the animation loop - animationId will be set inside animate()
     animate();
 
     // Store gltf reference for intro animation check
@@ -314,8 +344,38 @@ const {
 
       // Ensure we have valid dimensions
       if (!newWidth || !newHeight || newWidth <= 0 || newHeight <= 0) {
-        console.warn('Model3D: Invalid dimensions', { newWidth, newHeight });
-        return;
+        // Check if canvas is visible and connected to DOM
+        const rect = canvas.getBoundingClientRect();
+        const isConnected = canvas.isConnected;
+        const hasValidRect = rect.width > 0 && rect.height > 0;
+        
+        // Try to get dimensions from getBoundingClientRect as fallback
+        if (hasValidRect) {
+          newWidth = rect.width;
+          newHeight = rect.height;
+          // If we got valid dimensions from rect, continue with resize
+        } else if (!isConnected) {
+          // Canvas is disconnected (e.g., during View Transitions), skip silently
+          return;
+        } else {
+          // Canvas is connected but has invalid dimensions
+          // This might happen during initial render or View Transitions
+          // Only warn if canvas should be visible
+          const computedStyle = window.getComputedStyle(canvas);
+          const isDisplayed = computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
+          
+          if (isDisplayed) {
+            // Canvas should be visible but has no dimensions - might be a timing issue
+            // Use a small delay to retry
+            setTimeout(() => {
+              const retryRect = canvas.getBoundingClientRect();
+              if (retryRect.width > 0 && retryRect.height > 0) {
+                handleResize(entry);
+              }
+            }, 100);
+          }
+          return;
+        }
       }
 
       // Get current renderer size (accounting for pixel ratio)
@@ -452,11 +512,38 @@ const {
 
     // Cleanup on component unmount
     const cleanup = () => {
+      // Stop animation loop first
+      isAnimating = false;
+      currentIsAnimating = false; // Update global state
+      if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      if (currentAnimationId !== null) {
+        cancelAnimationFrame(currentAnimationId);
+        currentAnimationId = null;
+      }
+
       resizeObserver.disconnect();
       window.removeEventListener('resize', windowResizeHandler);
       clearTimeout(resizeTimeout);
       if (mixer) {
         mixer.stopAllAction();
+      }
+      if (controls) {
+        controls.dispose();
+      }
+      if (renderer) {
+        renderer.dispose();
+        // Force release WebGL context
+        const gl = renderer.getContext();
+        if (gl) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const loseContext = (gl as any).getExtension('WEBGL_lose_context');
+          if (loseContext) {
+            loseContext.loseContext();
+          }
+        }
       }
     };
 
@@ -471,6 +558,95 @@ const {
         handleResize();
       }
     });
+
+    // Handle Astro View Transitions - reinitialize model after page transition
+    // View Transitions can cause canvas to be replaced, so we need to reinitialize
+    const handlePageLoad = () => {
+      console.log('Model3D: Page loaded via View Transitions, checking canvas');
+      
+      // First, check if there's a canvas on the current page
+      // Use a small delay to ensure DOM is fully updated after transition
+      setTimeout(() => {
+        const currentCanvas = document.querySelector('canvas[data-canvas-id]') as HTMLCanvasElement || 
+                              document.querySelector('.model-3d-canvas') as HTMLCanvasElement;
+        
+        // If no canvas exists on current page (e.g., we're on a detail page), do nothing
+        if (!currentCanvas) {
+          console.log('Model3D: No canvas found on current page, skipping');
+          return;
+        }
+        
+        // If canvas is not connected or changed, reinitialize the entire model
+        if (!canvas.isConnected || (currentCanvas !== canvas && currentCanvas.isConnected)) {
+          console.log('Model3D: Canvas disconnected or changed, reinitializing model', {
+            originalConnected: canvas.isConnected,
+            hasCurrentCanvas: !!currentCanvas,
+            currentConnected: currentCanvas?.isConnected,
+            canvasChanged: currentCanvas !== canvas
+          });
+          
+          // Cleanup old instance
+          cleanup();
+          document.removeEventListener('astro:page-load', handlePageLoad);
+          
+          // Wait for WebGL context to be fully released, then reinitialize
+          setTimeout(() => {
+            initModel();
+          }, 200);
+          return;
+        }
+        
+        // Canvas is still connected, continue with resize check
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              // Check if canvas is visible and has valid dimensions
+              const rect = canvas.getBoundingClientRect();
+              const checkWidth = rect.width || canvas.clientWidth || canvas.parentElement?.clientWidth || 0;
+              const checkHeight = rect.height || canvas.clientHeight || canvas.parentElement?.clientHeight || 0;
+              
+              console.log('Model3D: Checking canvas after View Transition', {
+                rect: { width: rect.width, height: rect.height },
+                client: { width: canvas.clientWidth, height: canvas.clientHeight },
+                check: { width: checkWidth, height: checkHeight }
+              });
+              
+              if (checkWidth > 0 && checkHeight > 0) {
+                // Canvas has valid dimensions, resize renderer
+                console.log('Model3D: Canvas has valid dimensions, resizing', { checkWidth, checkHeight });
+                handleResize();
+                
+                // Force a render to ensure model is visible
+                if (model && scene && camera) {
+                  renderer.render(scene, camera);
+                }
+              } else {
+                // Canvas still has invalid dimensions, retry after delay
+                console.warn('Model3D: Canvas still has invalid dimensions, retrying', { checkWidth, checkHeight });
+                setTimeout(() => {
+                  const retryRect = canvas.getBoundingClientRect();
+                  const retryWidth = retryRect.width || canvas.clientWidth || canvas.parentElement?.clientWidth || 800;
+                  const retryHeight = retryRect.height || canvas.clientHeight || canvas.parentElement?.clientHeight || 600;
+                  
+                  if (retryWidth > 0 && retryHeight > 0) {
+                    console.log('Model3D: Retry successful, resizing', { retryWidth, retryHeight });
+                    handleResize();
+                    
+                    // Force a render
+                    if (model && scene && camera) {
+                      renderer.render(scene, camera);
+                    }
+                  }
+                }, 300);
+              }
+            });
+          });
+        });
+      }, 50);
+    };
+
+    // Listen for Astro View Transitions page load event
+    document.addEventListener('astro:page-load', handlePageLoad);
   }
 
   // Initialize when DOM is ready
