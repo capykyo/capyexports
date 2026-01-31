@@ -1,9 +1,10 @@
 ---
-// Root index page - redirect to /zh (default locale)
+// Root index page - silent redirect to default locale (no visible redirect message)
 import { defaultLocale } from '../i18n/utils';
 import { getUrl } from '../utils';
 
-// Get redirect path with base
+// Used in meta refresh and script in template (ESLint does not see Astro template usage)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in HTML template
 const redirectPath = getUrl(`/${defaultLocale}/`);
 ---
 <!doctype html>
@@ -11,12 +12,10 @@ const redirectPath = getUrl(`/${defaultLocale}/`);
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="refresh" content="0; url={redirectPath}" />
-    <script>
-      window.location.href = '{redirectPath}';
+    <script is:inline>
+      window.location.replace('{redirectPath}');
     </script>
-    <title>Redirecting...</title>
+    <title></title>
   </head>
-  <body>
-    <p>If you are not redirected, <a href={redirectPath}>click here</a>.</p>
-  </body>
+  <body></body>
 </html>
