@@ -1,0 +1,81 @@
+# GitHub Actions: Build and push capyexports to Aliyun ACR (Beijing Personal)
+# Trigger on Dockerfile, app source, or workflow file changes
+# Tags: latest and date (YYYYMMDD)
+# Credentials: use repo/org secrets - ACR_USERNAME, ACR_PASSWORD, ACR_NAMESPACE
+name: Docker Image Build (ACR)
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'astro.config.mjs'
+      - 'tailwind.config.mjs'
+      - 'src/**'
+      - 'public/**'
+      - '.github/workflows/docker-acr.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'astro.config.mjs'
+      - 'tailwind.config.mjs'
+      - 'src/**'
+      - 'public/**'
+      - '.github/workflows/docker-acr.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: crpi-5nqoro6hoopis4cp.cn-beijing.personal.cr.aliyuncs.com
+  IMAGE_NAME: capyexports
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Aliyun ACR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Date tag (YYYYMMDD)
+        id: date
+        run: echo "tag=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.date.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+        if: github.event_name != 'pull_request'
+
+      - name: Build only (PR)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: capyexports:pr
+        if: github.event_name == 'pull_request'

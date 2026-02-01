@@ -1,0 +1,26 @@
+# Build output and generated
+dist/
+.astro/
+
+# Dependencies (reinstalled in container)
+node_modules/
+
+# Git and IDE
+.git/
+.gitignore
+.idea/
+.cursor/
+refer/
+docs/
+
+# Env and logs
+.env
+.env.*
+*.log
+
+# macOS
+.DS_Store
+
+# Docs (content .md under src/content/ are needed for build)
+README.md
+.github/
