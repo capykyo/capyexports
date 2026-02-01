@@ -27,7 +27,10 @@ Minimalist portfolio site built with Astro. Supports i18n (zh / en / ja), works 
 │   ├── styles/global.css
 │   └── utils/              # getUrl, Draco loader, loadDracoModel
 ├── astro.config.mjs        # base: /capyexports/ in CI, / locally
-└── .github/workflows/deploy.yml  # Build & deploy to GitHub Pages
+├── Dockerfile              # Multi-stage: build Astro + serve dist (demo stack)
+└── .github/workflows/
+    ├── deploy.yml          # Build & deploy to GitHub Pages
+    └── docker-acr.yml      # Build & push image to Aliyun ACR
 ```
 
 ## Commands
@@ -65,16 +68,25 @@ Push to `main` or `master`; GitHub Actions builds and deploys to GitHub Pages. B
 
 ## Docker 部署（演示栈接入）
 
-本仓库可按 [demo-app 约定](.cursor/rules/demo-apps-howto.mdc) 构建为镜像，接入「网关 + 私有网络」演示栈：由 Nginx 统一入口反向代理，本应用不对外暴露端口，仅在内网提供静态站点。
+本仓库可按 [demo-app 约定](.cursor/rules/demo-apps-howto.mdc) 构建为镜像，接入「网关 + 私有网络」演示栈：由 Nginx 统一入口反向代理，本应用不对外暴露端口，仅在内网提供静态站点。镜像也可由 GitHub Actions（[docker-acr.yml](.github/workflows/docker-acr.yml)）在 push 时构建并推送到 Aliyun ACR。
 
 ### 构建与运行
+
+**本地构建：**
 
 ```bash
 docker build -t capyexports .
 docker run --rm -p 3000:3000 capyexports
 ```
 
-访问 `http://localhost:3000/capyexports/`（本地直连容器时需带 base path，因构建时使用 `base: '/capyexports/'`）。
+**从 ACR 拉取后运行（需先配置仓库 Secrets：ACR_USERNAME、ACR_PASSWORD、ACR_NAMESPACE）：**
+
+```bash
+docker pull $REGISTRY/$ACR_NAMESPACE/capyexports:latest
+docker run -d -p 3000:3000 --name capyexports $REGISTRY/$ACR_NAMESPACE/capyexports:latest
+```
+
+其中 `$REGISTRY` 为 `crpi-5nqoro6hoopis4cp.cn-beijing.personal.cr.aliyuncs.com`，`$ACR_NAMESPACE` 为你在 ACR 的命名空间（如 `capyexports`）。访问 `http://localhost:3000/capyexports/`（构建时使用 `base: '/capyexports/'`，需带该路径）。
 
 ### 集成方配置（供演示栈使用）
 

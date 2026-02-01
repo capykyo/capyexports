@@ -9,12 +9,13 @@ interface Props {
 
 const { currentLocale, currentPath } = Astro.props;
 
-// Get path without locale prefix for generating localized paths
-// Remove locale prefix if present, otherwise use the path as is
-// Also remove base path if present
-const base = import.meta.env.BASE_URL;
-const pathWithoutBase = currentPath.replace(new RegExp(`^${base}`), '');
-const pathWithoutLocale = pathWithoutBase.replace(/^\/(zh|en|ja)/, '') || '/';
+// Strip base then locale (first segment) so we get e.g. '' or 'resume' for localized path
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const pathWithoutBase = currentPath.replace(new RegExp(`^${base}\/?`), '').replace(/^\/+/, '');
+const segments = pathWithoutBase.split('/').filter(Boolean);
+const pathWithoutLocale = segments[0] && ['zh', 'en', 'ja'].includes(segments[0])
+  ? segments.slice(1).join('/')
+  : pathWithoutBase;
 ---
 
 <div class="relative group">

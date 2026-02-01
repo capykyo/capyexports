@@ -526,6 +526,7 @@ const {
 
       resizeObserver.disconnect();
       window.removeEventListener('resize', windowResizeHandler);
+      window.removeEventListener('pageshow', handlePageshow);
       clearTimeout(resizeTimeout);
       if (mixer) {
         mixer.stopAllAction();
@@ -548,6 +549,16 @@ const {
     };
 
     window.addEventListener('beforeunload', cleanup);
+
+    // Reinit when page is restored from bfcache (e.g. back from 404) so canvas is not white
+    const handlePageshow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        cleanup();
+        window.removeEventListener('pageshow', handlePageshow);
+        setTimeout(initModel, 100);
+      }
+    };
+    window.addEventListener('pageshow', handlePageshow);
     
     // Also cleanup when page is hidden (for SPA navigation)
     document.addEventListener('visibilitychange', () => {

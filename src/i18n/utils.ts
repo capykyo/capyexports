@@ -25,16 +25,13 @@ export function getLocaleFromPath(pathname: string): Locale {
 }
 
 /**
- * Get path with locale prefix
- * 获取带语言前缀的路径
+ * Get path with locale prefix (trailing slash for static build directory format)
+ * 获取带语言前缀的路径，与 Astro 静态输出目录格式一致
  */
 export function getLocalizedPath(path: string, locale: Locale): string {
-  // Remove leading slash if present
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  
-  // All locales use prefix for consistency
-  // Default locale (zh) also uses /zh prefix
-  return `/${locale}${cleanPath ? `/${cleanPath}` : ''}`;
+  const cleanPath = path.replace(/^\/+|\/+$/g, ''); // trim leading/trailing slashes
+  const segment = cleanPath ? `/${cleanPath}` : '';
+  return `/${locale}${segment}/`;
 }
 
 /**

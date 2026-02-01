@@ -8,6 +8,8 @@ RUN corepack enable && corepack prepare pnpm@latest --activate && pnpm install
 COPY . .
 ENV CI=1
 RUN pnpm run build
+# Serve zh as default at /capyexports/ (no redirect)
+RUN cp /app/dist/capyexports/zh/index.html /app/dist/capyexports/index.html
 
 # Stage 2: Serve dist with base-node (listen 0.0.0.0:3000 for Nginx upstream)
 FROM crpi-5nqoro6hoopis4cp.cn-beijing.personal.cr.aliyuncs.com/capyexports/base-node:latest AS runner
