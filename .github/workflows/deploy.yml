@@ -40,8 +40,8 @@ jobs:
       - name: Build project
         run: pnpm run build
 
-      - name: Serve zh as default at /capyexports/ (no redirect)
-        run: cp dist/capyexports/zh/index.html dist/capyexports/index.html
+      - name: Serve zh as default at root (no redirect)
+        run: cp dist/zh/index.html dist/index.html
 
       - name: Verify build output
         run: |
