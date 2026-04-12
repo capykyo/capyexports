@@ -12,19 +12,42 @@ const { locale = 'zh' } = Astro.props;
 const currentPath = Astro.url.pathname;
 ---
 
-<header class="w-full fixed top-0 left-0 right-0 z-30 bg-background-dark/90 backdrop-blur-sm pointer-events-auto">
-  <div class="max-w-[800px] mx-auto px-6 h-20 flex items-center justify-between">
-    <div class="flex items-center gap-2 group cursor-pointer">
-      <div class="size-8 bg-white rounded-lg flex items-center justify-center">
-        <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-        </svg>
+<header class="w-full fixed top-0 left-0 right-0 z-30">
+  <!-- Gradient fade from ink to transparent -->
+  <div class="absolute inset-0 bg-gradient-to-b from-ink via-ink/80 to-transparent pointer-events-none"></div>
+
+  <div class="relative max-w-[900px] mx-auto px-6 h-16 flex items-center justify-between">
+    <!-- Logo mark -->
+    <a href={getUrl(`/${locale}/`)} class="flex items-center gap-3 group" aria-label={t('meta.title', locale)}>
+      <!-- Geometric mark: two overlapping rectangles -->
+      <div class="relative w-7 h-7 flex-shrink-0">
+        <span class="absolute inset-0 border border-cream/30 rotate-6 group-hover:rotate-12 transition-transform duration-300"></span>
+        <span class="absolute inset-0 border border-ember/60 -rotate-3 group-hover:rotate-0 transition-transform duration-300"></span>
+        <span class="absolute inset-[5px] bg-ember/90 group-hover:bg-ember transition-colors duration-300"></span>
       </div>
-      <span class="font-bold tracking-tight text-lg">{t('meta.title', locale)}</span>
-    </div>
-    <nav class="flex items-center gap-8">
-      <a class="text-sm font-medium hover:text-white/70 transition-colors" href={getUrl(`/${locale}/`)}>{t('nav.works', locale)}</a>
-      <a class="text-sm font-medium hover:text-white/70 transition-colors" href={getUrl(`/${locale}/resume`)}>{t('nav.resume', locale)}</a>
+      <span class="font-serif text-base text-cream/90 group-hover:text-cream tracking-wide transition-colors duration-200 hidden sm:block">
+        {t('meta.title', locale)}
+      </span>
+    </a>
+
+    <!-- Nav -->
+    <nav class="flex items-center gap-1">
+      <a
+        class="relative px-3 py-1.5 text-xs tracking-widest uppercase font-mono text-cream-3 hover:text-cream transition-colors duration-200 group"
+        href={getUrl(`/${locale}/`)}
+      >
+        <span class="relative z-10">{t('nav.works', locale)}</span>
+        <span class="absolute inset-0 bg-ink-4 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-150"></span>
+      </a>
+      <a
+        class="relative px-3 py-1.5 text-xs tracking-widest uppercase font-mono text-cream-3 hover:text-cream transition-colors duration-200 group"
+        href={getUrl(`/${locale}/resume`)}
+      >
+        <span class="relative z-10">{t('nav.resume', locale)}</span>
+        <span class="absolute inset-0 bg-ink-4 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-150"></span>
+      </a>
+      <!-- Separator -->
+      <span class="w-px h-3 bg-ink-5 mx-1"></span>
       <LanguageSwitcher currentLocale={locale} currentPath={currentPath} />
     </nav>
   </div>

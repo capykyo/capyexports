@@ -12,84 +12,85 @@ interface Props {
   locale?: string;
 }
 
-const { title, description, image, icon, iconColor = "orange", link, slug, locale } = Astro.props;
+const { title, description, image, icon, iconColor = 'orange', link, slug, locale } = Astro.props;
 
-// Determine the href - prefer detail page if slug is provided, otherwise use external link
 const href = slug && locale ? getUrl(`/${locale}/works/${slug}`) : link;
 
-// Map icon colors to Tailwind classes
 const iconColorClasses: Record<string, { bg: string; border: string; text: string }> = {
-  orange: {
-    bg: "bg-orange-500/10",
-    border: "border-orange-500/20",
-    text: "text-orange-500"
-  },
-  blue: {
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-    text: "text-blue-500"
-  },
-  green: {
-    bg: "bg-green-500/10",
-    border: "border-green-500/20",
-    text: "text-green-500"
-  },
-  purple: {
-    bg: "bg-purple-500/10",
-    border: "border-purple-500/20",
-    text: "text-purple-500"
-  }
+  orange: { bg: 'bg-ember/10',  border: 'border-ember/20',  text: 'text-ember' },
+  blue:   { bg: 'bg-blue-500/10',  border: 'border-blue-500/20',  text: 'text-blue-400' },
+  green:  { bg: 'bg-jade/10',   border: 'border-jade/20',   text: 'text-jade-2' },
+  purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400' },
 };
 
 const colorClasses = iconColorClasses[iconColor] || iconColorClasses.orange;
 ---
 
 {href ? (
-  <a href={href} class="project-card flex flex-col group cursor-pointer">
-    <div class="aspect-[16/10] rounded-2xl overflow-hidden bg-white/5 mb-6">
+  <a href={href} class="work-card group block" style="text-decoration: none;">
+    <!-- Image / Icon area -->
+    <div class="aspect-[16/10] rounded overflow-hidden bg-ink-3 border border-ink-4 mb-4 relative">
+      <!-- Corner accent -->
+      <span class="absolute top-0 left-0 w-6 h-6 border-t border-l border-ember/40 z-10 group-hover:w-8 group-hover:h-8 transition-all duration-300"></span>
+      <span class="absolute bottom-0 right-0 w-6 h-6 border-b border-r border-ember/40 z-10 group-hover:w-8 group-hover:h-8 transition-all duration-300"></span>
+
       {image ? (
-        <img 
-          alt={`${title} preview`} 
-          class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-500" 
+        <img
+          alt={`${title} preview`}
+          class="work-card-img w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
           src={image}
         />
       ) : icon ? (
-        <div class="w-full h-full flex items-center justify-center p-8">
-          <div class={`size-24 rounded-2xl ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center`}>
-            <span class={`material-symbols-outlined ${colorClasses.text} text-5xl`}>{icon}</span>
+        <div class="w-full h-full flex items-center justify-center">
+          <div class={`size-16 rounded ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center`}>
+            <span class={`material-symbols-outlined ${colorClasses.text} text-4xl`}>{icon}</span>
           </div>
         </div>
       ) : null}
     </div>
-    <div class="text-center">
-      <h3 class="text-xl font-bold mb-2">{title}</h3>
-      <p class="text-sm text-gray-400 leading-relaxed px-4">
+
+    <!-- Text -->
+    <div class="px-1">
+      <!-- Title row -->
+      <div class="flex items-start justify-between gap-2 mb-1.5">
+        <h3 class="font-serif text-lg text-cream group-hover:text-cream leading-snug transition-colors duration-200">
+          {title}
+        </h3>
+        <!-- Arrow that slides in on hover -->
+        <span class="text-ember/0 group-hover:text-ember/80 transition-all duration-200 translate-x-0 group-hover:translate-x-1 mt-1 flex-shrink-0">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </div>
+      <p class="text-sm text-cream-3 leading-relaxed line-clamp-2">
         {description}
       </p>
     </div>
   </a>
 ) : (
-  <div class="project-card flex flex-col group cursor-pointer">
-    <div class="aspect-[16/10] rounded-2xl overflow-hidden bg-white/5 mb-6">
+  <div class="work-card group block">
+    <div class="aspect-[16/10] rounded overflow-hidden bg-ink-3 border border-ink-4 mb-4 relative">
+      <span class="absolute top-0 left-0 w-6 h-6 border-t border-l border-ember/40 z-10"></span>
+      <span class="absolute bottom-0 right-0 w-6 h-6 border-b border-r border-ember/40 z-10"></span>
+
       {image ? (
-        <img 
-          alt={`${title} preview`} 
-          class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-500" 
+        <img
+          alt={`${title} preview`}
+          class="work-card-img w-full h-full object-cover opacity-80"
           src={image}
         />
       ) : icon ? (
-        <div class="w-full h-full flex items-center justify-center p-8">
-          <div class={`size-24 rounded-2xl ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center`}>
-            <span class={`material-symbols-outlined ${colorClasses.text} text-5xl`}>{icon}</span>
+        <div class="w-full h-full flex items-center justify-center">
+          <div class={`size-16 rounded ${colorClasses.bg} border ${colorClasses.border} flex items-center justify-center`}>
+            <span class={`material-symbols-outlined ${colorClasses.text} text-4xl`}>{icon}</span>
           </div>
         </div>
       ) : null}
     </div>
-    <div class="text-center">
-      <h3 class="text-xl font-bold mb-2">{title}</h3>
-      <p class="text-sm text-gray-400 leading-relaxed px-4">
-        {description}
-      </p>
+    <div class="px-1">
+      <h3 class="font-serif text-lg text-cream leading-snug mb-1.5">{title}</h3>
+      <p class="text-sm text-cream-3 leading-relaxed line-clamp-2">{description}</p>
     </div>
   </div>
 )}

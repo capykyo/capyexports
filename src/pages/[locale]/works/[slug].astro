@@ -9,55 +9,33 @@ import { getUrl } from '../../../utils';
 import '../../../styles/global.css';
 import { marked } from 'marked';
 
-// Configure marked for better rendering
-marked.setOptions({
-  breaks: true, // Convert line breaks to <br>
-  gfm: true, // GitHub Flavored Markdown
-});
+marked.setOptions({ breaks: true, gfm: true });
 
-// Export getStaticPaths for dynamic route
 export async function getStaticPaths() {
   const allWorks = await getCollection('works');
   const paths: Array<{ params: { locale: string; slug: string } }> = [];
 
-  // Generate paths for each locale and work combination
   for (const locale of locales) {
     const worksForLocale = allWorks.filter((work) => work.data.lang === locale);
     for (const work of worksForLocale) {
-      // Use filename as slug (remove .md extension)
       const slug = work.id.split('/').pop()?.replace('.md', '') || '';
       if (slug) {
-        paths.push({
-          params: { locale, slug },
-        });
+        paths.push({ params: { locale, slug } });
       }
     }
   }
-
   return paths;
 }
 
-// Get params
 const { locale, slug } = Astro.params;
-
-// Get all works from Content Collections
 const allWorks = await getCollection('works');
-
-// Find the work matching the slug and locale
 const workMatch = allWorks.find((w) => {
   const workSlug = w.id.split('/').pop()?.replace('.md', '') || '';
   return workSlug === slug && w.data.lang === locale;
 });
 
-// If work not found, redirect to home
-if (!workMatch) {
-  return Astro.redirect(`/${locale}/`);
-}
+if (!workMatch) return Astro.redirect(`/${locale}/`);
 
-// For glob loader, use getEntry to get the entry with render capability
-// The glob loader returns entries without render method, so we need to get it again
-// Content is an Astro component from Content Collections render() method
-// Using a more specific type would require importing Astro's internal types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let Content: any = null;
 let renderedHtml: string | null = null;
@@ -67,26 +45,18 @@ try {
   const entry = await getEntry('works', workMatch.id);
   if (entry) {
     workEntry = entry;
-    // Check if entry has render method (for standard content collections)
     if ('render' in entry && typeof entry.render === 'function') {
       const rendered = await entry.render();
       Content = rendered.Content;
     } else if (entry.body) {
-      // Render Markdown to HTML using marked
       renderedHtml = marked(entry.body) as string;
     }
   }
 } catch (e) {
-  // If getEntry fails, use the original workMatch
   workEntry = workMatch;
-  // If workMatch has body, render it
-  if (workMatch.body) {
-    renderedHtml = marked(workMatch.body) as string;
-  }
-  console.warn('Could not get entry with render, using original:', e);
+  if (workMatch.body) renderedHtml = marked(workMatch.body) as string;
 }
 
-// Get page title
 const pageTitle = `${workEntry.data.title} - ${t('meta.title', locale as Locale)}`;
 const pageDescription = workEntry.data.description;
 ---
@@ -101,64 +71,84 @@ const pageDescription = workEntry.data.description;
     <meta name="description" content={pageDescription} />
     <title>{pageTitle}</title>
     <ViewTransitions />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
   </head>
-  <body class="min-h-screen">
+  <body class="min-h-screen bg-ink">
     <Header locale={locale as Locale} />
-    <main class="max-w-[800px] mx-auto px-6 md:pt-32 pt-16 pb-20">
-      <!-- Back Button -->
-      <div class="mb-8">
-        <a 
+
+    <main class="max-w-[900px] mx-auto px-6 pt-24 md:pt-28 pb-24">
+
+      <!-- Back -->
+      <div class="mb-10">
+        <a
           href={getUrl(`/${locale}/`)}
-          class="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors duration-200"
+          class="inline-flex items-center gap-2 text-xs font-mono tracking-widest uppercase text-cream-3 hover:text-ember transition-colors duration-200 group"
         >
-          <span class="material-symbols-outlined text-xl">arrow_back</span>
-          <span>{t('works.back', locale as Locale)}</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" class="group-hover:-translate-x-0.5 transition-transform duration-200">
+            <path d="M12 7H2M6 3L2 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          {t('works.back', locale as Locale)}
         </a>
       </div>
 
-      <!-- Work Header -->
-      <header class="mb-12">
-        <h1 class="text-4xl md:text-5xl font-bold mb-4">{workEntry.data.title}</h1>
-        {workEntry.data.date && (
-          <p class="text-gray-400 text-sm mb-6">
-            {new Date(workEntry.data.date).getFullYear()}
-            {workEntry.data.date && new Date(workEntry.data.date).getMonth() === 0 && new Date(workEntry.data.date).getDate() === 1 
-              ? '-' 
-              : ''}
-          </p>
-        )}
-        <p class="text-lg text-gray-300 leading-relaxed mb-6">{workEntry.data.description}</p>
-        
-        {workEntry.data.tags && workEntry.data.tags.length > 0 && (
-          <div class="flex flex-wrap gap-2 mb-6">
-            {workEntry.data.tags.map((tag) => (
-              <span class="px-3 py-1 text-sm rounded-full bg-white/5 border border-white/10 text-gray-400">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
+      <!-- Work header -->
+      <header class="mb-10">
+        <!-- Date + label row -->
+        <div class="flex items-center gap-4 mb-3">
+          {workEntry.data.date && (
+            <span class="section-label">
+              {new Date(workEntry.data.date).getFullYear()}
+            </span>
+          )}
+          {workEntry.data.tags && workEntry.data.tags.length > 0 && (
+            <div class="flex flex-wrap gap-2">
+              {workEntry.data.tags.map((tag) => (
+                <span class="tag-pill">{tag}</span>
+              ))}
+            </div>
+          )}
+        </div>
 
+        <!-- Title -->
+        <h1 class="font-serif text-4xl md:text-6xl text-cream leading-tight mb-4">
+          {workEntry.data.title}
+        </h1>
+
+        <!-- Divider -->
+        <div class="rule-ember mb-6"></div>
+
+        <!-- Description -->
+        <p class="text-base text-cream-2 leading-relaxed max-w-xl mb-6">
+          {workEntry.data.description}
+        </p>
+
+        <!-- CTA link -->
         {workEntry.data.link && (
-          <a 
+          <a
             href={workEntry.data.link}
             target="_blank"
             rel="noopener noreferrer"
-            class="inline-flex items-center gap-2 text-white hover:text-gray-300 transition-colors duration-200 underline underline-offset-4"
+            class="inline-flex items-center gap-2 text-xs font-mono tracking-widest uppercase text-ember hover:text-ember-2 transition-colors duration-200 border border-ember/30 hover:border-ember/60 px-4 py-2 rounded-sm"
           >
-            <span>{t('works.visit', locale as Locale)}</span>
-            <span class="material-symbols-outlined text-lg">open_in_new</span>
+            {t('works.visit', locale as Locale)}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 10L10 2M10 2H5M10 2v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </a>
         )}
       </header>
 
-      <!-- Work Image -->
+      <!-- Cover image -->
       {workEntry.data.image && (
         <div class="mb-12">
-          <div class="aspect-[16/10] rounded-2xl overflow-hidden bg-white/5">
-            <img 
+          <div class="aspect-[16/10] rounded overflow-hidden bg-ink-3 border border-ink-4 relative">
+            <!-- Corner accents -->
+            <span class="absolute top-0 left-0 w-8 h-8 border-t border-l border-ember/40 z-10"></span>
+            <span class="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-ember/40 z-10"></span>
+            <img
               src={workEntry.data.image}
               alt={workEntry.data.title}
               class="w-full h-full object-cover"
@@ -167,17 +157,36 @@ const pageDescription = workEntry.data.description;
         </div>
       )}
 
-      <!-- Work Content -->
+      <!-- Content -->
       {Content ? (
-        <article class="prose prose-invert prose-gray max-w-none">
+        <article class="prose prose-ink prose-sm md:prose-base max-w-none
+          prose-headings:font-serif prose-headings:font-normal prose-headings:tracking-tight
+          prose-h2:text-2xl prose-h2:border-b prose-h2:border-ink-5 prose-h2:pb-2 prose-h2:mb-4
+          prose-h3:text-lg prose-h3:text-ember-2
+          prose-a:text-ember-2 prose-a:no-underline hover:prose-a:underline
+          prose-code:bg-ink-3 prose-code:px-1 prose-code:rounded prose-code:text-xs
+          prose-pre:bg-ink-3 prose-pre:border prose-pre:border-ink-5
+          prose-blockquote:border-l-ember prose-blockquote:text-cream-3 prose-blockquote:not-italic
+          prose-strong:text-cream prose-strong:font-semibold
+          prose-li:text-cream-2 prose-p:text-cream-2">
           <Content />
         </article>
       ) : renderedHtml ? (
-        <article class="prose prose-invert prose-gray max-w-none">
+        <article class="prose prose-ink prose-sm md:prose-base max-w-none
+          prose-headings:font-serif prose-headings:font-normal prose-headings:tracking-tight
+          prose-h2:text-2xl prose-h2:border-b prose-h2:border-ink-5 prose-h2:pb-2 prose-h2:mb-4
+          prose-h3:text-lg prose-h3:text-ember-2
+          prose-a:text-ember-2 prose-a:no-underline hover:prose-a:underline
+          prose-code:bg-ink-3 prose-code:px-1 prose-code:rounded prose-code:text-xs
+          prose-pre:bg-ink-3 prose-pre:border prose-pre:border-ink-5
+          prose-blockquote:border-l-ember prose-blockquote:text-cream-3 prose-blockquote:not-italic
+          prose-strong:text-cream prose-strong:font-semibold
+          prose-li:text-cream-2 prose-p:text-cream-2">
           <div set:html={renderedHtml} />
         </article>
       ) : null}
     </main>
+
     <Footer locale={locale as Locale} />
   </body>
 </html>
